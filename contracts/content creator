@@ -1,0 +1,64 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract RoyaltyDistribution {
+
+    // Struct to store creator information
+    struct Creator {
+        address payable creatorAddress;
+        uint256 percentage; // Percentage of royalties
+    }
+
+    // Array to store all creators
+    Creator[] public creators;
+
+    // Event to log royalty distribution
+    event RoyaltyDistributed(address indexed creator, uint256 amount);
+
+    // Modifier to check the percentage validity
+    modifier validPercentage(uint256 _percentage) {
+        require(_percentage > 0 && _percentage <= 100, "Invalid percentage");
+        _;
+    }
+
+    // Function to add a new creator
+    function addCreator(address payable _creatorAddress, uint256 _percentage) 
+        public validPercentage(_percentage) 
+    {
+        require(_creatorAddress != address(0), "Invalid address");
+
+        // Check that total percentage does not exceed 100%
+        uint256 totalPercentage = 0;
+        for (uint256 i = 0; i < creators.length; i++) {
+            totalPercentage += creators[i].percentage;
+        }
+        require(totalPercentage + _percentage <= 100, "Total percentage exceeds 100");
+
+        creators.push(Creator({
+            creatorAddress: _creatorAddress,
+            percentage: _percentage
+        }));
+    }
+
+    // Function to receive payments and distribute royalties
+    receive() external payable {
+        uint256 totalReceived = msg.value;
+        
+        for (uint256 i = 0; i < creators.length; i++) {
+            uint256 payment = (totalReceived * creators[i].percentage) / 100;
+            creators[i].creatorAddress.transfer(payment);
+            emit RoyaltyDistributed(creators[i].creatorAddress, payment);
+        }
+    }
+
+    // Function to get the number of creators
+    function getCreatorsCount() public view returns (uint256) {
+        return creators.length;
+    }
+
+    // Function to get creator details
+    function getCreator(uint256 index) public view returns (address, uint256) {
+        require(index < creators.length, "Invalid index");
+        return (creators[index].creatorAddress, creators[index].percentage);
+    }
+}
